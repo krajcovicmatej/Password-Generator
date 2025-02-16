@@ -3,6 +3,7 @@ import string
 import os
 import tkinter as tk
 from tkinter import filedialog
+import pyperclip  # Clipboard functionality
 
 def generate_password(length=12, use_digits=True, use_special_chars=True, use_uppercase=True, use_lowercase=True):
     """Generates a secure password with given parameters."""
@@ -18,6 +19,29 @@ def generate_password(length=12, use_digits=True, use_special_chars=True, use_up
         return None
 
     return ''.join(random.choice(characters) for _ in range(length))
+
+def rate_password(password):
+    """Rates password strength based on length and character variety."""
+    if not password:
+        return "❌ Invalid Password"
+
+    length_score = len(password)
+    variety_score = sum([
+        any(c.islower() for c in password),  # Lowercase
+        any(c.isupper() for c in password),  # Uppercase
+        any(c.isdigit() for c in password),  # Numbers
+        any(c in string.punctuation for c in password)  # Special characters
+    ])
+
+    # Determine strength level
+    if length_score < 8 or variety_score < 2:
+        return "🔴 Weak"
+    elif length_score < 12 or variety_score < 3:
+        return "🟡 Moderate"
+    elif length_score < 16 or variety_score < 4:
+        return "🟢 Strong"
+    else:
+        return "🔥 Very Strong"
 
 def get_valid_number(prompt, min_value=1):
     """Ensures the user enters a valid number."""
@@ -70,7 +94,25 @@ def run_password_generator():
         # Display generated passwords
         print("\n✅ Generated Passwords:")
         for i, password in enumerate(passwords, 1):
-            print(f"{i}. {password}")
+            strength = rate_password(password)
+            print(f"{i}. {password}  ➝  {strength}")
+
+        # Copy to clipboard
+        if get_yes_no("\nDo you want to copy a password to the clipboard?"):
+            while True:
+                print("\nEnter the number of the password to copy (or type 'all' to copy all passwords).")
+                choice = input("Your choice: ").strip().lower()
+
+                if choice == "all":
+                    pyperclip.copy("\n".join(passwords))
+                    print("📋 All passwords copied to clipboard!")
+                    break
+                elif choice.isdigit() and 1 <= int(choice) <= len(passwords):
+                    pyperclip.copy(passwords[int(choice) - 1])
+                    print(f"📋 Password {choice} copied to clipboard!")
+                    break
+                else:
+                    print("❌ Invalid choice. Please enter a valid number or 'all'.")
 
         # Save to file if user wants
         if get_yes_no("\nDo you want to save the passwords to a file?"):
@@ -78,7 +120,7 @@ def run_password_generator():
             if file_path:  # If user selected a file
                 with open(file_path, "a") as file:
                     for password in passwords:
-                        file.write(password + "\n")
+                        file.write(f"{password}  ➝  {rate_password(password)}\n")
                 print(f"💾 Passwords saved to: **{file_path}**")
             else:
                 print("❌ No file selected. Passwords not saved.")

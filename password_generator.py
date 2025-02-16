@@ -4,8 +4,13 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 import pyperclip  # Clipboard functionality
+from typing import Optional
 
-def generate_password(length=12, use_digits=True, use_special_chars=True, use_uppercase=True, use_lowercase=True):
+# Constants
+MIN_PASSWORD_LENGTH = 6
+MIN_NUM_PASSWORDS = 1
+
+def generate_password(length: int = 12, use_digits: bool = True, use_special_chars: bool = True, use_uppercase: bool = True, use_lowercase: bool = True) -> Optional[str]:
     """Generates a secure password with given parameters."""
     characters = (
         (string.ascii_lowercase if use_lowercase else "") +
@@ -20,7 +25,7 @@ def generate_password(length=12, use_digits=True, use_special_chars=True, use_up
 
     return ''.join(random.choice(characters) for _ in range(length))
 
-def rate_password(password):
+def rate_password(password: str) -> str:
     """Rates password strength based on length and character variety."""
     if not password:
         return "❌ Invalid Password"
@@ -43,7 +48,7 @@ def rate_password(password):
     else:
         return "🔥 Very Strong"
 
-def get_valid_number(prompt, min_value=1):
+def get_valid_number(prompt: str, min_value: int = 1) -> int:
     """Ensures the user enters a valid number."""
     while True:
         try:
@@ -54,7 +59,7 @@ def get_valid_number(prompt, min_value=1):
         except ValueError:
             print("❌ Invalid input. Please enter a number.")
 
-def get_yes_no(prompt):
+def get_yes_no(prompt: str) -> bool:
     """Asks the user a yes/no question and ensures valid input."""
     while True:
         choice = input(prompt + " (y/n): ").strip().lower()
@@ -62,7 +67,7 @@ def get_yes_no(prompt):
             return choice == 'y'  # Returns True for 'y', False for 'n'
         print("❌ Invalid input. Please enter 'y' for yes or 'n' for no.")
 
-def choose_save_location():
+def choose_save_location() -> str:
     """Opens a file dialog so the user can choose where to save the password file."""
     root = tk.Tk()
     root.withdraw()  # Hide the Tkinter root window
@@ -75,14 +80,44 @@ def choose_save_location():
 
     return file_path  # Returns the full path the user chose
 
-def run_password_generator():
+def copy_to_clipboard(passwords: list[str]) -> None:
+    """Handles copying passwords to the clipboard."""
+    if get_yes_no("\nDo you want to copy a password to the clipboard?"):
+        while True:
+            print("\nEnter the number of the password to copy (or type 'all' to copy all passwords).")
+            choice = input("Your choice: ").strip().lower()
+
+            if choice == "all":
+                pyperclip.copy("\n".join(passwords))
+                print("📋 All passwords copied to clipboard!")
+                break
+            elif choice.isdigit() and 1 <= int(choice) <= len(passwords):
+                pyperclip.copy(passwords[int(choice) - 1])
+                print(f"📋 Password {choice} copied to clipboard!")
+                break
+            else:
+                print("❌ Invalid choice. Please enter a valid number or 'all'.")
+
+def save_to_file(passwords: list[str]) -> None:
+    """Handles saving passwords to a file."""
+    if get_yes_no("\nDo you want to save the passwords to a file?"):
+        file_path = choose_save_location()  # Let the user pick a save location
+        if file_path:  # If user selected a file
+            with open(file_path, "a") as file:
+                for password in passwords:
+                    file.write(f"{password}  ➝  {rate_password(password)}\n")
+            print(f"💾 Passwords saved to: **{file_path}**")
+        else:
+            print("❌ No file selected. Passwords not saved.")
+
+def run_password_generator() -> None:
     """Main function to generate multiple passwords."""
     print("🔐 Secure Password Generator 🔐")
 
     while True:
         # Get user preferences
-        num_passwords = get_valid_number("How many passwords do you want to generate? ", min_value=1)
-        length = get_valid_number("Enter password length (min. 6 characters): ", min_value=6)
+        num_passwords = get_valid_number("How many passwords do you want to generate? ", min_value=MIN_NUM_PASSWORDS)
+        length = get_valid_number("Enter password length (min. 6 characters): ", min_value=MIN_PASSWORD_LENGTH)
         use_lowercase = get_yes_no("Include lowercase letters?")
         use_uppercase = get_yes_no("Include uppercase letters?")
         use_digits = get_yes_no("Include numbers?")
@@ -98,32 +133,10 @@ def run_password_generator():
             print(f"{i}. {password}  ➝  {strength}")
 
         # Copy to clipboard
-        if get_yes_no("\nDo you want to copy a password to the clipboard?"):
-            while True:
-                print("\nEnter the number of the password to copy (or type 'all' to copy all passwords).")
-                choice = input("Your choice: ").strip().lower()
-
-                if choice == "all":
-                    pyperclip.copy("\n".join(passwords))
-                    print("📋 All passwords copied to clipboard!")
-                    break
-                elif choice.isdigit() and 1 <= int(choice) <= len(passwords):
-                    pyperclip.copy(passwords[int(choice) - 1])
-                    print(f"📋 Password {choice} copied to clipboard!")
-                    break
-                else:
-                    print("❌ Invalid choice. Please enter a valid number or 'all'.")
+        copy_to_clipboard(passwords)
 
         # Save to file if user wants
-        if get_yes_no("\nDo you want to save the passwords to a file?"):
-            file_path = choose_save_location()  # Let the user pick a save location
-            if file_path:  # If user selected a file
-                with open(file_path, "a") as file:
-                    for password in passwords:
-                        file.write(f"{password}  ➝  {rate_password(password)}\n")
-                print(f"💾 Passwords saved to: **{file_path}**")
-            else:
-                print("❌ No file selected. Passwords not saved.")
+        save_to_file(passwords)
 
         # Ask if they want another batch of passwords, otherwise exit
         if not get_yes_no("\nGenerate another batch of passwords?"):
